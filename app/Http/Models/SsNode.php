@@ -7,26 +7,18 @@ use Illuminate\Database\Eloquent\Model;
 /**
  * SS节点信息
  * Class SsNode
+ *
  * @package App\Http\Models
+ * @property-read \Illuminate\Database\Eloquent\Collection|\App\Http\Models\SsNodeLabel[] $label
+ * @mixin \Eloquent
  */
 class SsNode extends Model
 {
     protected $table = 'ss_node';
     protected $primaryKey = 'id';
-    protected $fillable = [
-        'name',
-        'server',
-        'method',
-        'custom_method',
-        'protocol',
-        'protocol_param',
-        'obfs',
-        'obfs_param',
-        'traffic_rate',
-        'bandwidth',
-        'transfer',
-        'sort',
-        'status'
-    ];
 
+    public function label()
+    {
+        return $this->hasMany(SsNodeLabel::class, 'node_id', 'id');
+    }
 }

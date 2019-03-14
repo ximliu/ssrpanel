@@ -1,22 +1,9 @@
 @extends('admin.layouts')
-
 @section('css')
 @endsection
-@section('title', '控制面板')
 @section('content')
     <!-- BEGIN CONTENT BODY -->
-    <div class="page-content">
-        <!-- BEGIN PAGE BREADCRUMB -->
-        <ul class="page-breadcrumb breadcrumb">
-            <li>
-                <a href="{{url('admin')}}">工具箱</a>
-                <i class="fa fa-circle"></i>
-            </li>
-            <li>
-                <a href="{{url('admin/convert')}}">格式转换</a>
-            </li>
-        </ul>
-        <!-- END PAGE BREADCRUMB -->
+    <div class="page-content" style="padding-top:0;">
         <!-- BEGIN PAGE BASE CONTENT -->
         <div class="row">
             <div class="col-md-12">
@@ -24,9 +11,8 @@
                 <div class="portlet light bordered">
                     <div class="portlet-title">
                         <div class="caption font-dark">
-                            <i class="icon-refresh font-dark"></i>
                             <span class="caption-subject bold uppercase"> 格式转换 </span>
-                            <small>SS转SSR</small>
+                            <small>Shadowsocks 转 ShadowsocksR</small>
                         </div>
                     </div>
                     <div class="portlet-body">
@@ -87,10 +73,10 @@
                         </div>
                         <div class="row" style="margin-top:10px;">
                             <div class="col-md-6">
-                                <button class="btn blue btn-block" onclick="do_convert()">转 换</button>
+                                <button class="btn blue btn-block" onclick="doConvert()">转 换</button>
                             </div>
                             <div class="col-md-6">
-                                <button class="btn red btn-block" onclick="do_download()">下 载</button>
+                                <button class="btn red btn-block" onclick="doDownload()">下 载</button>
                             </div>
                         </div>
                     </div>
@@ -103,11 +89,9 @@
     <!-- END CONTENT BODY -->
 @endsection
 @section('script')
-    <script src="/assets/global/plugins/bootbox/bootbox.min.js" type="text/javascript"></script>
-
     <script type="text/javascript">
         // 转换
-        function do_convert() {
+        function doConvert() {
             var _token = '{{csrf_token()}}';
             var method = $('#method').val();
             var transfer_enable = $('#transfer_enable').val();
@@ -118,48 +102,35 @@
             var content = $('#content').val();
 
             if (content == '') {
-                bootbox.alert("请填入要转换的配置信息");
+                layer.msg('请填入要转换的配置信息', {time:1000});
                 return ;
             }
 
-            bootbox.confirm({
-                message: '确定继续转换吗',
-                buttons: {
-                    confirm: {
-                        label: '确定',
-                        className: 'btn-success'
-                    },
-                    cancel: {
-                        label: '取消',
-                        className: 'btn-default'
+            layer.confirm('确定继续转换吗？', {icon: 2, title:'警告'}, function(index) {
+                $.ajax({
+                    type: "POST",
+                    url: "{{url('admin/convert')}}",
+                    async: false,
+                    data: {_token:_token, method:method, transfer_enable:transfer_enable, protocol:protocol, protocol_param:protocol_param, obfs:obfs, obfs_param:obfs_param, content: content},
+                    dataType: 'json',
+                    success: function (ret) {
+                        if (ret.status == 'success') {
+                            $("#result").val(ret.data);
+                        } else {
+                            $("#result").val(ret.message);
+                        }
                     }
-                },
-                callback: function (result) {
-                    if (result) {
-                        $.ajax({
-                            type: "POST",
-                            url: "{{url('admin/convert')}}",
-                            async: false,
-                            data: {_token:_token, method:method, transfer_enable:transfer_enable, protocol:protocol, protocol_param:protocol_param, obfs:obfs, obfs_param:obfs_param, content: content},
-                            dataType: 'json',
-                            success: function (ret) {
-                                if (ret.status == 'success') {
-                                    $("#result").val(ret.data);
-                                } else {
-                                    $("#result").val(ret.message);
-                                }
-                            }
-                        });
-                    }
-                }
+                });
+
+                layer.close(index);
             });
 
             return false;
         }
 
         // 下载
-        function do_download() {
-            window.location.href = '{{url('download')}}';
+        function doDownload() {
+            window.location.href = '{{url('admin/download?type=1')}}';
         }
     </script>
 @endsection

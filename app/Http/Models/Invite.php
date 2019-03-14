@@ -7,19 +7,16 @@ use Illuminate\Database\Eloquent\Model;
 /**
  * 邀请码
  * Class Invite
+ *
  * @package App\Http\Models
+ * @property-read \App\Http\Models\User $Generator
+ * @property-read \App\Http\Models\User $User
+ * @mixin \Eloquent
  */
 class Invite extends Model
 {
     protected $table = 'invite';
     protected $primaryKey = 'id';
-    protected $fillable = [
-        'uid',
-        'fuid',
-        'code',
-        'status',
-        'dateline'
-    ];
 
     public function Generator()
     {

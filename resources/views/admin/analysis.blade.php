@@ -1,24 +1,11 @@
 @extends('admin.layouts')
-
 @section('css')
     <link href="/assets/global/plugins/datatables/datatables.min.css" rel="stylesheet" type="text/css" />
     <link href="/assets/global/plugins/datatables/plugins/bootstrap/datatables.bootstrap.css" rel="stylesheet" type="text/css" />
 @endsection
-@section('title', '控制面板')
 @section('content')
     <!-- BEGIN CONTENT BODY -->
-    <div class="page-content">
-        <!-- BEGIN PAGE BREADCRUMB -->
-        <ul class="page-breadcrumb breadcrumb">
-            <li>
-                <a href="javascript:;">设置</a>
-                <i class="fa fa-circle"></i>
-            </li>
-            <li>
-                <a href="{{url('admin/analysis')}}">日志分析</a>
-            </li>
-        </ul>
-        <!-- END PAGE BREADCRUMB -->
+    <div class="page-content" style="padding-top:0;">
         <!-- BEGIN PAGE BASE CONTENT -->
         <div class="row">
             <div class="col-md-12">
@@ -26,14 +13,14 @@
                 <div class="portlet light bordered">
                     <div class="portlet-title">
                         <div class="caption font-dark">
-                            <i class="icon-bar-chart font-dark"></i>
-                            <span class="caption-subject bold uppercase"> 日志分析 </span>
+                            <span class="caption-subject bold uppercase"> 日志分析 </span><small>仅适用于单机单节点</small>
                         </div>
                     </div>
                     <div class="portlet-body">
                         @if (Session::has('analysisErrorMsg'))
                             <div class="alert alert-danger">
                                 <button class="close" data-close="alert"></button>
+                                <i class="fa fa-warning"></i>
                                 {{Session::get('analysisErrorMsg')}}
                             </div>
                         @else
@@ -46,7 +33,7 @@
                                 <tbody>
                                     @if(empty($urlList))
                                         <tr>
-                                            <td colspan="2">暂无数据</td>
+                                            <td colspan="2">访问记录不足15000条，无法分析数据</td>
                                         </tr>
                                     @else
                                         @foreach($urlList as $url)
@@ -68,7 +55,6 @@
     <!-- END CONTENT BODY -->
 @endsection
 @section('script')
-    <script src="/assets/global/plugins/bootbox/bootbox.min.js" type="text/javascript"></script>
     <script src="/assets/global/scripts/datatable.js" type="text/javascript"></script>
     <script src="/assets/global/plugins/datatables/datatables.min.js" type="text/javascript"></script>
     <script src="/assets/global/plugins/datatables/plugins/bootstrap/datatables.bootstrap.js" type="text/javascript"></script>

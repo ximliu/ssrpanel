@@ -2,42 +2,59 @@
 
 namespace App\Http\Models;
 
-use Illuminate\Database\Eloquent\Model;
+use Illuminate\Notifications\Notifiable;
+use Illuminate\Foundation\Auth\User as Authenticatable;
 
 /**
  * 用户信息
  * Class User
+ *
  * @package App\Http\Models
+ * @property mixed                                                                                                          $balance
+ * @property-read \Illuminate\Database\Eloquent\Collection|\App\Http\Models\UserLabel[]                                     $label
+ * @property-read \Illuminate\Notifications\DatabaseNotificationCollection|\Illuminate\Notifications\DatabaseNotification[] $notifications
+ * @property-read \Illuminate\Database\Eloquent\Collection|\App\Http\Models\Payment[]                                       $payment
+ * @property-read \App\Http\Models\User                                                                                     $referral
+ * @mixin \Eloquent
  */
-class User extends Model
+class User extends Authenticatable
 {
+    use Notifiable;
     protected $table = 'user';
     protected $primaryKey = 'id';
-    protected $fillable = [
-        'username',
-        'password',
-        'port',
-        'passwd',
-        'transfer_enable',
-        'u',
-        'd',
-        't',
-        'enable',
-        'method',
-        'custom_method',
-        'protocol',
-        'protocol_param',
-        'obfs',
-        'obfs_param',
-        'wechat',
-        'qq',
-        'usage',
-        'pay_way',
-        'balance',
-        'enable_time',
-        'expire_time',
-        'remark',
-        'is_admin',
-        'reg_ip'
-    ];
+
+    function levelList()
+    {
+        return $this->hasOne(Level::class, 'level', 'level');
+    }
+
+    function payment()
+    {
+        return $this->hasMany(Payment::class, 'user_id', 'id');
+    }
+
+    function label()
+    {
+        return $this->hasMany(UserLabel::class, 'user_id', 'id');
+    }
+
+    function subscribe()
+    {
+        return $this->hasOne(UserSubscribe::class, 'user_id', 'id');
+    }
+
+    function referral()
+    {
+        return $this->hasOne(User::class, 'id', 'referral_uid');
+    }
+
+    function getBalanceAttribute($value)
+    {
+        return $value / 100;
+    }
+
+    function setBalanceAttribute($value)
+    {
+        return $this->attributes['balance'] = $value * 100;
+    }
 }

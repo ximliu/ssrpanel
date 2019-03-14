@@ -5,22 +5,20 @@ namespace App\Http\Models;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * 验证
+ * 注册时的验证激活地址
  * Class Verify
+ *
  * @package App\Http\Models
+ * @property-read \App\Http\Models\User $User
+ * @mixin \Eloquent
  */
 class Verify extends Model
 {
     protected $table = 'verify';
     protected $primaryKey = 'id';
-    protected $fillable = [
-        'user_id',
-        'username',
-        'token',
-        'status'
-    ];
 
-    public function User() {
+    public function User()
+    {
         return $this->hasOne(User::class, 'id', 'user_id');
     }
 

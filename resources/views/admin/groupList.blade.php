@@ -1,24 +1,11 @@
 @extends('admin.layouts')
-
 @section('css')
     <link href="/assets/global/plugins/datatables/datatables.min.css" rel="stylesheet" type="text/css" />
     <link href="/assets/global/plugins/datatables/plugins/bootstrap/datatables.bootstrap.css" rel="stylesheet" type="text/css" />
 @endsection
-@section('title', '控制面板')
 @section('content')
     <!-- BEGIN CONTENT BODY -->
-    <div class="page-content">
-        <!-- BEGIN PAGE BREADCRUMB -->
-        <ul class="page-breadcrumb breadcrumb">
-            <li>
-                <a href="javascript:;">节点管理</a>
-                <i class="fa fa-circle"></i>
-            </li>
-            <li>
-                <a href="{{url('admin/groupList')}}">节点分组列表</a>
-            </li>
-        </ul>
-        <!-- END PAGE BREADCRUMB -->
+    <div class="page-content" style="padding-top:0;">
         <!-- BEGIN PAGE BASE CONTENT -->
         <div class="row">
             <div class="col-md-12">
@@ -26,42 +13,39 @@
                 <div class="portlet light bordered">
                     <div class="portlet-title">
                         <div class="caption font-dark">
-                            <i class="icon-list font-dark"></i>
-                            <span class="caption-subject bold uppercase"> 节点分组列表 </span>
+                            <span class="caption-subject bold uppercase"> 节点分组 </span>
                         </div>
                         <div class="actions">
                             <div class="btn-group">
-                                <button id="sample_editable_1_new" class="btn sbold blue" onclick="addGroup()"> 新增
-                                    <i class="fa fa-plus"></i>
-                                </button>
+                                <button class="btn sbold blue" onclick="addGroup()"> 添加分组 </button>
                             </div>
                         </div>
                     </div>
                     <div class="portlet-body">
-                        <div class="table-scrollable">
-                            <table class="table table-striped table-bordered table-hover table-checkable order-column">
+                        <div class="table-scrollable table-scrollable-borderless">
+                            <table class="table table-hover table-light">
                                 <thead>
                                 <tr>
-                                    <th> ID </th>
+                                    <th> # </th>
                                     <th> 分组名称 </th>
-                                    <th> 限制 </th>
-                                    <th> 操作 </th>
+                                    <th> 分组级别 </th>
+                                    <th style="text-align: center;"> 操作 </th>
                                 </tr>
                                 </thead>
                                 <tbody>
                                     @if($groupList->isEmpty())
                                         <tr>
-                                            <td colspan="4">暂无数据</td>
+                                            <td colspan="3" style="text-align: center;">暂无数据</td>
                                         </tr>
                                     @else
                                         @foreach($groupList as $group)
                                             <tr class="odd gradeX">
                                                 <td> {{$group->id}} </td>
                                                 <td> {{$group->name}} </td>
-                                                <td> {{$node->level}} </td>
-                                                <td>
-                                                    <button type="button" class="btn btn-sm blue btn-outline" onclick="editNode('{{$node->id}}')">编辑</button>
-                                                    <button type="button" class="btn btn-sm red btn-outline" onclick="delNode('{{$node->id}}')">删除</button>
+                                                <td> {{$levelMap[$group->level]}} </td>
+                                                <td style="text-align: center;">
+                                                    <button type="button" class="btn btn-sm blue btn-outline" onclick="editGroup('{{$group->id}}')"> 编辑 </button>
+                                                    <button type="button" class="btn btn-sm red btn-outline" onclick="delGroup('{{$group->id}}')"> 删除 </button>
                                                 </td>
                                             </tr>
                                         @endforeach
@@ -70,10 +54,10 @@
                             </table>
                         </div>
                         <div class="row">
-                            <div class="col-md-5 col-sm-5">
-                                <div class="dataTables_info" role="status" aria-live="polite">共 {{$groupList->total()}} 个节点</div>
+                            <div class="col-md-4 col-sm-4">
+                                <div class="dataTables_info" role="status" aria-live="polite">共 {{$groupList->total()}} 个节点分组</div>
                             </div>
-                            <div class="col-md-7 col-sm-7">
+                            <div class="col-md-8 col-sm-8">
                                 <div class="dataTables_paginate paging_bootstrap_full_number pull-right">
                                     {{$groupList->links()}}
                                 </div>
@@ -89,8 +73,6 @@
     <!-- END CONTENT BODY -->
 @endsection
 @section('script')
-    <script src="/assets/global/plugins/bootbox/bootbox.min.js" type="text/javascript"></script>
-
     <script type="text/javascript">
         // 添加节点分组
         function addGroup() {
@@ -104,33 +86,16 @@
 
         // 删除节点分组
         function delGroup(id) {
-            var _token = '{{csrf_token()}}';
+            layer.confirm('确定删除分组？', {icon: 2, title:'警告'}, function(index) {
+                $.post("{{url('admin/delGroup')}}", {id:id, _token:'{{csrf_token()}}'}, function(ret) {
+                    layer.msg(ret.message, {time:1000}, function() {
+                        if (ret.status == 'success') {
+                            window.location.reload();
+                        }
+                    });
+                });
 
-            bootbox.confirm({
-                message: "确定删除节点？",
-                buttons: {
-                    confirm: {
-                        label: '确定',
-                        className: 'btn-success'
-                    },
-                    cancel: {
-                        label: '取消',
-                        className: 'btn-danger'
-                    }
-                },
-                callback: function (result) {
-                    if (result) {
-                        $.post("{{url('admin/delGroup')}}", {id:id, _token:_token}, function(ret){
-                            if (ret.status == 'success') {
-                                bootbox.alert(ret.message, function(){
-                                    window.location.reload();
-                                });
-                            } else {
-                                bootbox.alert(ret.message);
-                            }
-                        });
-                    }
-                }
+                layer.close(index);
             });
         }
     </script>
