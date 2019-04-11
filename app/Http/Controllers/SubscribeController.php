@@ -220,7 +220,7 @@ class SubscribeController extends Controller
                     "tls"  => $node['v2_tls'] ? "tls" : ""
                 ];
 
-                $scheme .= 'vmess://' . base64url_encode(json_encode($v2_json)) . "\n";
+                $scheme .= 'vmess://' . base64url_encode(json_encode($v2_json, JSON_PRETTY_PRINT)) . "\n";
             }
         }
 
@@ -229,7 +229,7 @@ class SubscribeController extends Controller
             $headers = [
                 'Content-type'          => 'application/octet-stream; charset=utf-8',
                 'Cache-Control'         => 'no-store, no-cache, must-revalidate',
-                'Subscription-userinfo' => 'upload=' . $user->u . '; download=' . $user->d . '; total=' . $user->transfer_enable
+                'Subscription-Userinfo' => 'upload=' . $user->u . '; download=' . $user->d . '; total=' . $user->transfer_enable . '; expire=' . strtotime($user->expire_time)
             ];
 
             return Response::make(base64url_encode($scheme), 200, $headers);

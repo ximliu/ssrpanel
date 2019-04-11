@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Components\Helpers;
 use App\Components\IPIP;
 use App\Components\QQWry;
+use App\Components\CaptchaVerify;
 use App\Http\Models\Invite;
 use App\Http\Models\User;
 use App\Http\Models\UserLoginLog;
@@ -45,7 +46,7 @@ class AuthController extends Controller
     // 登录
     public function login(Request $request)
     {
-        if ($request->method() == 'POST') {
+        if ($request->isMethod('POST')) {
             $username = trim($request->get('username'));
             $password = trim($request->get('password'));
             $captcha = trim($request->get('captcha'));
@@ -58,12 +59,41 @@ class AuthController extends Controller
             }
 
             // 是否校验验证码
-            if (self::$systemConfig['is_captcha']) {
-                if (!Captcha::check($captcha)) {
-                    Session::flash('errorMsg', '验证码错误，请重新输入');
+            switch (self::$systemConfig['is_captcha']) {
+                case 1:
+                    // Default Captcha
+                    if (!Captcha::check($captcha)) {
+                        Session::flash('errorMsg', '验证码错误，请重新输入');
+                        return Redirect::back()->withInput();
+                    }
+                    break;
+                case 2:
+                    // Geetest
+                    $result = $this->validate($request, [
+                        'geetest_challenge' => 'required|geetest'
+                    ], [
+                        'geetest' => trans('login.fail_captcha')
+                    ]);
 
-                    return Redirect::back()->withInput();
-                }
+                    if (!$result) {
+                        Session::flash('errorMsg', trans('login.fail_captcha'));
+                        return Redirect::back()->withInput();
+                    }
+                    break;
+                case 3:
+                    // Google reCAPTCHA
+                    $result = $this->validate($request, [
+                        'g-recaptcha-response' => 'required|NoCaptcha'
+                    ]);
+
+                    if (!$result) {
+                        Session::flash('errorMsg', trans('login.fail_captcha'));
+                        return Redirect::back()->withInput();
+                    }
+                    break;
+                default:
+                    # nothing..
+                    break;
             }
 
             // 验证账号并创建会话
@@ -96,7 +126,7 @@ class AuthController extends Controller
             $this->addUserLoginLog(Auth::user()->id, getClientIp());
 
             // 更新登录信息
-            User::query()->where('id', Auth::user()->id)->update(['last_login' => time()]);
+            User::uid()->update(['last_login' => time()]);
 
             // 根据权限跳转
             if (Auth::user()->is_admin) {
@@ -130,7 +160,7 @@ class AuthController extends Controller
     {
         $cacheKey = 'register_times_' . md5(getClientIp()); // 注册限制缓存key
 
-        if ($request->method() == 'POST') {
+        if ($request->isMethod('POST')) {
             $username = trim($request->get('username'));
             $password = trim($request->get('password'));
             $repassword = trim($request->get('repassword'));
@@ -226,10 +256,40 @@ class AuthController extends Controller
                     $verifyCode->save();
                 }
             } elseif (self::$systemConfig['is_captcha']) { // 是否校验验证码
-                if (!Captcha::check($captcha)) {
-                    Session::flash('errorMsg', '验证码错误，请重新输入');
+                switch (self::$systemConfig['is_captcha']) {
+                    case 1:
+                        // Default Captcha
+                        if (!Captcha::check($captcha)) {
+                            Session::flash('errorMsg', '验证码错误，请重新输入');
+                            return Redirect::back()->withInput();
+                        }
+                        break;
+                    case 2:
+                        // Geetest
+                        $result = $this->validate($request, [
+                            'geetest_challenge' => 'required|geetest'
+                        ], [
+                            'geetest' => trans('login.fail_captcha')
+                        ]);
 
-                    return Redirect::back()->withInput($request->except(['captcha']));
+                        if (!$result) {
+                            Session::flash('errorMsg', trans('login.fail_captcha'));
+                            return Redirect::back()->withInput();
+                        }
+                        break;
+                    case 3:
+                        // Google reCAPTCHA
+                        $result = $this->validate($request, [
+                            'g-recaptcha-response' => 'required|NoCaptcha'
+                        ]);
+                        if (!$result) {
+                            Session::flash('errorMsg', trans('login.fail_captcha'));
+                            return Redirect::back()->withInput();
+                        }
+                        break;
+                    default:
+                        # nothing..
+                        break;
                 }
             }
 
@@ -373,7 +433,7 @@ class AuthController extends Controller
     // 重设密码页
     public function resetPassword(Request $request)
     {
-        if ($request->method() == 'POST') {
+        if ($request->isMethod('POST')) {
             $username = trim($request->get('username'));
 
             // 校验账号合法性
@@ -438,7 +498,7 @@ class AuthController extends Controller
     // 重设密码
     public function reset(Request $request, $token)
     {
-        if ($request->method() == 'POST') {
+        if ($request->isMethod('POST')) {
             $password = trim($request->get('password'));
             $repassword = trim($request->get('repassword'));
 
@@ -517,7 +577,7 @@ class AuthController extends Controller
     // 激活账号页
     public function activeUser(Request $request)
     {
-        if ($request->method() == 'POST') {
+        if ($request->isMethod('POST')) {
             $username = trim($request->get('username'));
 
             // 是否开启账号激活
@@ -708,7 +768,7 @@ class AuthController extends Controller
      * 添加用户登录日志
      *
      * @param string $userId 用户ID
-     * @param string $ip     IP地址
+     * @param string $ip IP地址
      */
     private function addUserLoginLog($userId, $ip)
     {
@@ -756,7 +816,7 @@ class AuthController extends Controller
      * 获取AFF
      *
      * @param string $code 邀请码
-     * @param string $aff  URL中的aff参数
+     * @param string $aff URL中的aff参数
      *
      * @return array
      */
