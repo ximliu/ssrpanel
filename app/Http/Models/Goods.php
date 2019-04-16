@@ -19,6 +19,11 @@ class Goods extends Model
     protected $primaryKey = 'id';
     protected $dates = ['deleted_at'];
 
+    function scopeType($query, $type)
+    {
+        return $query->where('type', $type)->where('status', 1)->orderBy('sort', 'desc');
+    }
+
     function label()
     {
         return $this->hasMany(GoodsLabel::class, 'goods_id', 'id');
@@ -34,7 +39,7 @@ class Goods extends Model
         $this->attributes['price'] = $value * 100;
     }
 
-    public function getTrafficLabelAttribute()
+    function getTrafficLabelAttribute()
     {
         $traffic_label = flowAutoShow($this->attributes['traffic'] * 1048576);
 

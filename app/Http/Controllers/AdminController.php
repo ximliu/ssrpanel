@@ -30,7 +30,6 @@ use App\Http\Models\UserBalanceLog;
 use App\Http\Models\UserBanLog;
 use App\Http\Models\UserLabel;
 use App\Http\Models\UserLoginLog;
-use App\Http\Models\UserScoreLog;
 use App\Http\Models\UserSubscribe;
 use App\Http\Models\UserTrafficDaily;
 use App\Http\Models\UserTrafficHourly;
@@ -256,7 +255,6 @@ class AdminController extends Controller
             $user->usage = $request->get('usage');
             $user->pay_way = $request->get('pay_way');
             $user->balance = 0;
-            $user->score = 0;
             $user->enable_time = empty($request->get('enable_time')) ? date('Y-m-d') : $request->get('enable_time');
             $user->expire_time = empty($request->get('expire_time')) ? date('Y-m-d', strtotime("+365 days")) : $request->get('expire_time');
             $user->remark = str_replace("eval", "", str_replace("atob", "", $request->get('remark')));
@@ -518,7 +516,6 @@ class AdminController extends Controller
             UserSubscribe::query()->where('user_id', $id)->delete();
             UserBanLog::query()->where('user_id', $id)->delete();
             UserLabel::query()->where('user_id', $id)->delete();
-            UserScoreLog::query()->where('user_id', $id)->delete();
             UserBalanceLog::query()->where('user_id', $id)->delete();
             UserTrafficModifyLog::query()->where('user_id', $id)->delete();
             UserLoginLog::query()->where('user_id', $id)->delete();
@@ -1512,24 +1509,16 @@ EOF;
             $new_password = trim($request->get('new_password'));
 
             if (!Hash::check($old_password, Auth::user()->password)) {
-                Session::flash('errorMsg', '旧密码错误，请重新输入');
-
-                return Redirect::back();
+                return Redirect::back()->withErrors('旧密码错误，请重新输入');
             } elseif (Hash::check($new_password, Auth::user()->password)) {
-                Session::flash('errorMsg', '新密码不可与旧密码一样，请重新输入');
-
-                return Redirect::back();
+                return Redirect::back()->withErrors('新密码不可与旧密码一样，请重新输入');
             }
 
             $ret = User::uid()->update(['password' => Hash::make($new_password)]);
             if (!$ret) {
-                Session::flash('errorMsg', '修改失败');
-
-                return Redirect::back();
+                return Redirect::back()->withErrors('修改失败');
             } else {
-                Session::flash('successMsg', '修改成功');
-
-                return Redirect::back();
+                return Redirect::back()->with('successMsg', '修改成功');
             }
         } else {
             return Response::view('admin.profile');
@@ -2033,8 +2022,8 @@ EOF;
         if (env('APP_DEMO')) {
             $denyConfig = [
                 'website_url',
-                'min_rand_score',
-                'max_rand_score',
+                'min_rand_traffic',
+                'max_rand_traffic',
                 'push_bear_send_key',
                 'push_bear_qrcode',
                 'youzan_client_id',

@@ -34,6 +34,7 @@ use Log;
 use DB;
 use Auth;
 use Hash;
+use Validator;
 
 /**
  * 用户控制器
@@ -89,7 +90,7 @@ class UserController extends Controller
         $view['trafficDaily'] = "'" . implode("','", $dailyData) . "'";
         $view['trafficHourly'] = "'" . implode("','", $hourlyData) . "'";
         $view['monthDays'] = "'" . implode("','", $monthDays) . "'";
-        $view['notice'] = Article::query()->where('type', 2)->orderBy('id', 'desc')->first(); // 公告
+        $view['notice'] = Article::type(2)->orderBy('id', 'desc')->first(); // 公告
 
         return Response::view('user.index', $view);
     }
@@ -107,20 +108,20 @@ class UserController extends Controller
             return Response::json(['status' => 'fail', 'message' => '已经签到过了，明天再来吧']);
         }
 
-        $score = mt_rand(self::$systemConfig['min_rand_traffic'], self::$systemConfig['max_rand_traffic']);
-        $ret = User::uid()->increment('transfer_enable', $score * 1048576);
+        $traffic = mt_rand(self::$systemConfig['min_rand_traffic'], self::$systemConfig['max_rand_traffic']);
+        $ret = User::uid()->increment('transfer_enable', $traffic * 1048576);
         if (!$ret) {
             return Response::json(['status' => 'fail', 'message' => '签到失败，系统异常']);
         }
 
         // 写入用户流量变动记录
-        Helpers::addUserTrafficModifyLog(Auth::user()->id, 0, Auth::user()->transfer_enable, Auth::user()->transfer_enable + $score * 1048576, '[签到]');
+        Helpers::addUserTrafficModifyLog(Auth::user()->id, 0, Auth::user()->transfer_enable, Auth::user()->transfer_enable + $traffic * 1048576, '[签到]');
 
         // 多久后可以再签到
         $ttl = self::$systemConfig['traffic_limit_time'] ? self::$systemConfig['traffic_limit_time'] : 1440;
         Cache::put('userCheckIn_' . Auth::user()->id, '1', $ttl);
 
-        return Response::json(['status' => 'success', 'message' => '签到成功，系统送您 ' . $score . 'M 流量']);
+        return Response::json(['status' => 'success', 'message' => '签到成功，系统送您 ' . $traffic . 'M 流量']);
     }
 
     // 节点列表
@@ -133,7 +134,7 @@ class UserController extends Controller
         $view['link'] = (self::$systemConfig['subscribe_domain'] ? self::$systemConfig['subscribe_domain'] : self::$systemConfig['website_url']) . '/s/' . Auth::user()->subscribe->code;
 
         // 订阅连接二维码
-        $view['link_qrcode'] = 'sub://' . base64url_encode($view['link']) . '#' . self::$systemConfig['website_name'];
+        $view['link_qrcode'] = 'sub://' . base64url_encode($view['link']) . '#' . base64url_encode(self::$systemConfig['website_name']);
 
         // 节点列表
         $userLabelIds = UserLabel::uid()->pluck('label_id');
@@ -251,12 +252,12 @@ class UserController extends Controller
         $view['nodeList'] = $nodeList;
 
         // 使用教程
-        $view['tutorial1'] = Article::query()->where('type', 4)->where('sort', 1)->orderBy('id', 'desc')->first();
-        $view['tutorial2'] = Article::query()->where('type', 4)->where('sort', 2)->orderBy('id', 'desc')->first();
-        $view['tutorial3'] = Article::query()->where('type', 4)->where('sort', 3)->orderBy('id', 'desc')->first();
-        $view['tutorial4'] = Article::query()->where('type', 4)->where('sort', 4)->orderBy('id', 'desc')->first();
-        $view['tutorial5'] = Article::query()->where('type', 4)->where('sort', 5)->orderBy('id', 'desc')->first();
-        $view['tutorial6'] = Article::query()->where('type', 4)->where('sort', 6)->orderBy('id', 'desc')->first();
+        $view['tutorial1'] = Article::type(4)->where('sort', 1)->orderBy('id', 'desc')->first();
+        $view['tutorial2'] = Article::type(4)->where('sort', 2)->orderBy('id', 'desc')->first();
+        $view['tutorial3'] = Article::type(4)->where('sort', 3)->orderBy('id', 'desc')->first();
+        $view['tutorial4'] = Article::type(4)->where('sort', 4)->orderBy('id', 'desc')->first();
+        $view['tutorial5'] = Article::type(4)->where('sort', 5)->orderBy('id', 'desc')->first();
+        $view['tutorial6'] = Article::type(4)->where('sort', 6)->orderBy('id', 'desc')->first();
 
         return Response::view('user.nodeList', $view);
     }
@@ -264,12 +265,7 @@ class UserController extends Controller
     // 公告详情
     public function article(Request $request)
     {
-        $id = $request->get('id');
-
-        $view['info'] = Article::query()->where('id', $id)->first();
-        if (empty($view['info'])) {
-            return Redirect::to('/');
-        }
+        $view['info'] = Article::query()->findOrFail($request->id);
 
         return Response::view('user.article', $view);
     }
@@ -287,51 +283,35 @@ class UserController extends Controller
             // 修改密码
             if ($old_password && $new_password) {
                 if (!Hash::check($old_password, Auth::user()->password)) {
-                    Session::flash('errorMsg', '旧密码错误，请重新输入');
-
-                    return Redirect::to('profile#tab_1');
+                    return Redirect::to('profile#tab_1')->withErrors('旧密码错误，请重新输入');
                 } elseif (Hash::check($new_password, Auth::user()->password)) {
-                    Session::flash('errorMsg', '新密码不可与旧密码一样，请重新输入');
-
-                    return Redirect::to('profile#tab_1');
+                    return Redirect::to('profile#tab_1')->withErrors('新密码不可与旧密码一样，请重新输入');
                 }
 
                 // 演示环境禁止改管理员密码
                 if (env('APP_DEMO') && Auth::user()->id == 1) {
-                    Session::flash('errorMsg', '演示环境禁止修改管理员密码');
-
-                    return Redirect::to('profile#tab_1');
+                    return Redirect::to('profile#tab_1')->withErrors('演示环境禁止修改管理员密码');
                 }
 
                 $ret = User::uid()->update(['password' => Hash::make($new_password)]);
                 if (!$ret) {
-                    Session::flash('errorMsg', '修改失败');
-
-                    return Redirect::to('profile#tab_1');
+                    return Redirect::to('profile#tab_1')->withErrors('修改失败');
                 } else {
-                    Session::flash('successMsg', '修改成功');
-
-                    return Redirect::to('profile#tab_1');
+                    return Redirect::to('profile#tab_1')->with('successMsg', '修改成功');
                 }
             }
 
             // 修改联系方式
             if ($wechat || $qq) {
                 if (empty(clean($wechat)) && empty(clean($qq))) {
-                    Session::flash('errorMsg', '修改失败');
-
-                    return Redirect::to('profile#tab_2');
+                    return Redirect::to('profile#tab_2')->withErrors('修改失败');
                 }
 
                 $ret = User::uid()->update(['wechat' => $wechat, 'qq' => $qq]);
                 if (!$ret) {
-                    Session::flash('errorMsg', '修改失败');
-
-                    return Redirect::to('profile#tab_2');
+                    return Redirect::to('profile#tab_2')->withErrors('修改失败');
                 } else {
-                    Session::flash('successMsg', '修改成功');
-
-                    return Redirect::to('profile#tab_2');
+                    return Redirect::to('profile#tab_2')->with('successMsg', '修改成功');
                 }
             }
 
@@ -339,23 +319,15 @@ class UserController extends Controller
             if ($passwd) {
                 $ret = User::uid()->update(['passwd' => $passwd]);
                 if (!$ret) {
-                    Session::flash('errorMsg', '修改失败');
-
-                    return Redirect::to('profile#tab_3');
+                    return Redirect::to('profile#tab_3')->withErrors('修改失败');
                 } else {
-                    Session::flash('successMsg', '修改成功');
-
-                    return Redirect::to('profile#tab_3');
+                    return Redirect::to('profile#tab_3')->with('successMsg', '修改成功');
                 }
             }
 
-            Session::flash('errorMsg', '非法请求');
-
-            return Redirect::to('profile#tab_1');
+            return Redirect::to('profile#tab_1')->withErrors('非法请求');
         } else {
-            $view['info'] = User::uid()->first();
-
-            return Response::view('user.profile', $view);
+            return Response::view('user.profile');
         }
     }
 
@@ -363,16 +335,16 @@ class UserController extends Controller
     public function services(Request $request)
     {
         // 余额充值商品，只取10个
-        $view['chargeGoodsList'] = Goods::query()->where('status', 1)->where('type', 3)->orderBy('sort', 'desc')->orderBy('price', 'asc')->limit(10)->get();
+        $view['chargeGoodsList'] = Goods::type(3)->orderBy('price', 'asc')->limit(10)->get();
 
         // 套餐列表
-        $view['packageList'] = Goods::query()->where('status', 1)->where('type', 2)->orderBy('sort', 'desc')->limit(12)->get();
+        $view['packageList'] = Goods::type(2)->limit(12)->get();
 
         // 流量包列表
-        $view['trafficList'] = Goods::query()->where('status', 1)->where('type', 1)->orderBy('sort', 'desc')->limit(12)->get();
+        $view['trafficList'] = Goods::type(1)->limit(12)->get();
 
         // 购买说明
-        $view['direction'] = Article::query()->where('type', 3)->orderBy('id', 'desc')->first();
+        $view['direction'] = Article::type(3)->orderBy('id', 'desc')->first();
 
         return Response::view('user.services', $view);
     }
@@ -442,10 +414,7 @@ class UserController extends Controller
     {
         $id = intval($request->get('id'));
 
-        $ticket = Ticket::query()->with('user')->where('id', $id)->first();
-        if (empty($ticket) || $ticket->user_id != Auth::user()->id) {
-            return Redirect::to('tickets');
-        }
+        $ticket = Ticket::uid()->with('user')->where('id', $id)->firstOrFail();
 
         if ($request->isMethod('POST')) {
             $content = clean($request->get('content'));
@@ -854,7 +823,7 @@ class UserController extends Controller
     // 帮助中心
     public function help(Request $request)
     {
-        $view['articleList'] = Article::query()->where('type', 1)->orderBy('sort', 'desc')->orderBy('id', 'desc')->limit(10)->paginate(5);
+        $view['articleList'] = Article::type(1)->orderBy('sort', 'desc')->orderBy('id', 'desc')->limit(10)->paginate(5);
 
         return Response::view('user.help', $view);
     }
@@ -899,26 +868,28 @@ class UserController extends Controller
     // 卡券余额充值
     public function charge(Request $request)
     {
-        $coupon_sn = trim($request->get('coupon_sn'));
-        if (empty($coupon_sn)) {
-            return Response::json(['status' => 'fail', 'data' => '', 'message' => '券码不能为空']);
+        $validator = Validator::make($request->all(), [
+            'coupon_sn' => 'required'
+        ], [
+            'coupon_sn.required' => '券码不能为空'
+        ]);
+
+        if ($validator->fails()) {
+            return Response::json(['status' => 'fail', 'data' => '', 'message' => $validator->getMessageBag()->first()]);
         }
 
-        $coupon = Coupon::query()->where('sn', $coupon_sn)->where('type', 3)->where('status', 0)->first();
+        $coupon = Coupon::type(3)->where('sn', $request->coupon_sn)->where('status', 0)->first();
         if (!$coupon) {
             return Response::json(['status' => 'fail', 'data' => '', 'message' => '该券不可用']);
         }
 
         DB::beginTransaction();
         try {
-            $user = User::uid()->first();
-
             // 写入日志
-            $this->addUserBalanceLog($user->id, 0, $user->balance, $user->balance + $coupon->amount, $coupon->amount, '用户手动充值 - [充值券：' . $coupon_sn . ']');
+            $this->addUserBalanceLog(Auth::user()->id, 0, Auth::user()->balance, Auth::user()->balance + $coupon->amount, $coupon->amount, '用户手动充值 - [充值券：' . $request->coupon_sn . ']');
 
             // 余额充值
-            $user->balance = $user->balance + $coupon->amount;
-            $user->save();
+            User::uid()->increment('balance', $coupon->amount);
 
             // 更改卡券状态
             $coupon->status = 1;
